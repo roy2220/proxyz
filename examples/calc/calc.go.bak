@@ -1,0 +1,18 @@
+package main
+
+import "fmt"
+
+type calc struct {
+}
+
+func (calc) Sum(x, y int) string {
+	s := fmt.Sprintf("%d + %d = %d", x, y, x+y)
+	return s
+}
+
+func main() {
+	var c calc
+	s := c.Sum(1, 2)
+	fmt.Println(s)
+	// Output: 1 + 2 = 3
+}
