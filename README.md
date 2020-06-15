@@ -133,4 +133,4 @@ go run calc.go calcproxy.go
 # 1 + 102 != 103
 ```
 
-See [examples/clac](./examples/clac) for the complete code
+See [examples/calc](examples/calc) for the complete code
