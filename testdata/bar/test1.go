@@ -6,9 +6,12 @@ import (
 	. "github.com/roy2220/proxyz/testdata/baz"
 )
 
-type Test1B struct {
+type Test1B Test1BReal
+
+type Test1BReal struct {
 	Test1C
 	io.Reader
+	error
 }
 
 func (*Test1B) B1() {}

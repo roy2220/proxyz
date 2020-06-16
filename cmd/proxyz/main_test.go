@@ -20,9 +20,12 @@ func TestMain(t *testing.T) {
 		},
 		{
 			CmdLines: [][]string{
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "File", "github.com/roy2220/proxyz/testdata/test2", "FileWrap", "-w", "test2_generated1.go"},
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Server", "github.com/roy2220/proxyz/testdata/test2", "ServerWrap", "-w", "test2_generated2.go"},
-				{"proxyz", "testing", "TB", "github.com/roy2220/proxyz/testdata/test2", "TPWrap", "-w", "test2_generated3.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "File", "github.com/roy2220/proxyz/testdata/test2", "FileWrap", "-w", "test2_1_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Server", "github.com/roy2220/proxyz/testdata/test2", "ServerWrap", "-w", "test2_2_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err2", "github.com/roy2220/proxyz/testdata/test2", "Err2Wrap", "-w", "test2_3_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err3", "github.com/roy2220/proxyz/testdata/test2", "Err3Wrap", "-w", "test2_4_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err4", "github.com/roy2220/proxyz/testdata/test2", "Err4Wrap", "-w", "test2_5_generated.go"},
+				{"proxyz", "testing", "TB", "github.com/roy2220/proxyz/testdata/test2", "TPWrap", "-w", "test2_6_generated.go"},
 			},
 			GoRunPkg: "github.com/roy2220/proxyz/testdata/test2",
 		},

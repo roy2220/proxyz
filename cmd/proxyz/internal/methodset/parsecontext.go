@@ -60,6 +60,11 @@ func (pc *ParseContext) importPackage(currentPackageID string, packagePath strin
 		rawPackage = rawPackages[0]
 	} else {
 		currentPackage := pc.packageID2Package[currentPackageID]
+
+		if currentPackage.Path == packagePath {
+			return currentPackage, nil
+		}
+
 		rawPackage = currentPackage.Imports[packagePath]
 	}
 
