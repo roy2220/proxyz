@@ -58,18 +58,18 @@ type Proxy interface {
 
 // XxxProxyBase represents the base of proxies generated.
 type XxxProxyBase struct {
-	xxxMethodCallInterceptors methodCallInterceptors
+	methodCallInterceptors methodCallInterceptors
 }
 
 // XxxInterceptMethodCall implements Proxy.XxxInterceptMethodCall.
 func (pb *XxxProxyBase) XxxInterceptMethodCall(methodIndex int, methodCallInterceptor MethodCallInterceptor) {
-	pb.xxxMethodCallInterceptors.AddItem(methodIndex, methodCallInterceptor)
+	pb.methodCallInterceptors.AddItem(methodIndex, methodCallInterceptor)
 }
 
 // XxxGetMethodCallInterceptors returns the interceptors applied to the calls
 // to the method at the given index. It serves for generated code.
 func (pb *XxxProxyBase) XxxGetMethodCallInterceptors(methodIndex int) []MethodCallInterceptor {
-	return pb.xxxMethodCallInterceptors.GetItems(methodIndex)
+	return pb.methodCallInterceptors.GetItems(methodIndex)
 }
 
 type methodCallInterceptors struct {
