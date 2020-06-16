@@ -65,11 +65,11 @@ func (ms *MethodSet) doParseType(
 	object := package1.Scope.Lookup(typeName)
 
 	if object == nil {
-		return false, fmt.Errorf("methodset: type not found: packagePath=%q typeName=%q", packagePath, typeName)
+		return false, fmt.Errorf("methodset: type not found; packagePath=%q typeName=%q", packagePath, typeName)
 	}
 
 	if object.Kind != ast.Typ {
-		return false, fmt.Errorf("methodset: non-type: packagePath=%q objectName=%q objectKind=%q",
+		return false, fmt.Errorf("methodset: non-type; packagePath=%q objectName=%q objectKind=%q",
 			packagePath, object.Name, object.Kind)
 	}
 

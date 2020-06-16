@@ -491,16 +491,16 @@ func findPackageIDAndName(packagePath string) (string, string, error) {
 	}, packagePath)
 
 	if err != nil {
-		return "", "", fmt.Errorf("proxygen: package load failed: packagePath=%q\n%v", packagePath, err)
+		return "", "", fmt.Errorf("proxygen: package load failed; packagePath=%q: %v", packagePath, err)
 	}
 
 	if n := len(rawPackages); n != 1 {
 		var err error
 
 		if n == 0 {
-			err = fmt.Errorf("proxygen: no package found: packagePath=%q", packagePath)
+			err = fmt.Errorf("proxygen: no package found; packagePath=%q", packagePath)
 		} else {
-			err = fmt.Errorf("proxygen: multiple packages found: packagePath=%q", packagePath)
+			err = fmt.Errorf("proxygen: multiple packages found; packagePath=%q", packagePath)
 		}
 
 		return "", "", err
@@ -514,7 +514,7 @@ func locatePackageDir(packagePath string) (string, error) {
 	rawPackage, err := build.Import(packagePath, ".", build.FindOnly)
 
 	if err != nil {
-		return "", fmt.Errorf("proxygen: package import failed: packagePath=%q\n%v", packagePath, err)
+		return "", fmt.Errorf("proxygen: package import failed; packagePath=%q: %v", packagePath, err)
 	}
 
 	return rawPackage.Dir, nil

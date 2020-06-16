@@ -42,16 +42,16 @@ func (pc *ParseContext) importPackage(currentPackageID string, packagePath strin
 		}, packagePath)
 
 		if err != nil {
-			return nil, fmt.Errorf("methodset: package load failed: packagePath=%q\n%v", packagePath, err)
+			return nil, fmt.Errorf("methodset: package load failed; packagePath=%q: %v", packagePath, err)
 		}
 
 		if n := len(rawPackages); n != 1 {
 			var err error
 
 			if n == 0 {
-				err = fmt.Errorf("methodset: no package found: packagePath=%q", packagePath)
+				err = fmt.Errorf("methodset: no package found; packagePath=%q", packagePath)
 			} else {
-				err = fmt.Errorf("methodset: multiple packages found: packagePath=%q", packagePath)
+				err = fmt.Errorf("methodset: multiple packages found; packagePath=%q", packagePath)
 			}
 
 			return nil, err
@@ -174,7 +174,7 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 
 		for _, ident := range file.Unresolved {
 			if !resolveIdent(ident, fileScope) {
-				return fmt.Errorf("methodset: undeclared name: name=%q sourcePosition=%q",
+				return fmt.Errorf("methodset: undeclared name; name=%q sourcePosition=%q",
 					ident.Name, pc.fileSet.Position(ident.Pos()))
 			}
 		}
