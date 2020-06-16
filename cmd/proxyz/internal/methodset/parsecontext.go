@@ -106,7 +106,7 @@ func (pc *ParseContext) getPackageBasicInfo(object *ast.Object) (PackageBasicInf
 
 func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, packagePath string) (*package1, error) {
 	if len(rawPackage.Errors) != 0 {
-		buffer := bytes.NewBufferString("methodset: package errors occurred")
+		buffer := bytes.NewBufferString("methodset: package errors encountered")
 
 		for _, packageError := range rawPackage.Errors {
 			buffer.WriteByte('\n')

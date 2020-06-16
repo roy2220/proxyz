@@ -212,7 +212,7 @@ func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID 
 				}
 			}
 		case *ast.FuncType:
-			if nameIsUnexported(method1.Names[0].Name) {
+			if !nameIsExported(method1.Names[0].Name) {
 				continue
 			}
 
@@ -320,7 +320,7 @@ func (ms *MethodSet) parseFuncDecls(context *ParseContext, package1 *package1, o
 				continue
 			}
 
-			if nameIsUnexported(funcDecl.Name.Name) {
+			if !nameIsExported(funcDecl.Name.Name) {
 				continue
 			}
 
@@ -487,6 +487,6 @@ var errorMethods = []Method{
 	},
 }
 
-func nameIsUnexported(name string) bool {
-	return name[0] < 'A' || name[0] > 'Z'
+func nameIsExported(name string) bool {
+	return name[0] >= 'A' && name[0] <= 'Z'
 }
