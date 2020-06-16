@@ -15,10 +15,10 @@ import (
 
 func main() {
 	var args struct {
-		InputPackagePath  string `arg:"positional" help:"input package path in Go" placeholder:"IPKG"`
-		InputTypeName     string `arg:"positional" help:"input type name in Go" placeholder:"ITYPE"`
-		OutputPackagePath string `arg:"positional" help:"output package path in Go" placeholder:"OPKG"`
-		OutputTypeName    string `arg:"positional" help:"output type name in Go" placeholder:"OTYPE"`
+		InputPackagePath  string `arg:"positional,required,--ipkg" help:"input package path in Go"`
+		InputTypeName     string `arg:"positional,required,--itype" help:"input type name in Go"`
+		OutputPackagePath string `arg:"positional,required,--opkg" help:"output package path in Go"`
+		OutputTypeName    string `arg:"positional,required,--otype" help:"output type name in Go"`
 		FormatOutput      bool   `arg:"-f,--format" default:"true" help:"format output"`
 		OutputFileName    string `arg:"-w,--write" help:"write output to file inside output package directory" placeholder:"FILE"`
 	}
@@ -58,7 +58,7 @@ func main() {
 		output, err = format.Source(output)
 
 		if err != nil {
-			fatalf("failed to format output: %v", err)
+			infof("failed to format output: %v", err)
 		}
 	}
 

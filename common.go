@@ -7,7 +7,7 @@ type MethodCallInterceptor func(methodCall MethodCall)
 // MethodCall represents a call to a method.
 type MethodCall interface {
 	// Forward forwards the method call to the next interceptor, if any,
-	// or forwards to the undelying object to call the real method.
+	// or forwards to the underlying object to call the real method.
 	//
 	// It should be manually called in the body of every intercepting
 	// function, otherwise the method will NOT be actually called.
@@ -44,9 +44,16 @@ type Proxy interface {
 	// to the method at the given index.
 	XxxInterceptMethodCall(methodIndex int, methodCallInterceptor MethodCallInterceptor)
 
-	// XxxNumberOfMethods returns the number of the methods of the proxy,
-	// excluding the methods whose names start with 'Xxx'.
+	// XxxGetMethodName returns the name of the method at the given index.
+	XxxGetMethodName(methodIndex int) string
+
+	// XxxNumberOfMethods returns the number of the methods of the proxy
+	// generated, excluding the methods whose names start with 'Xxx'.
 	XxxNumberOfMethods() int
+
+	// XxxUnderlyingType returns the representation of the underlying type of
+	// the proxy generated.
+	XxxUnderlyingType() string
 }
 
 // XxxProxyBase represents the base of proxies generated.

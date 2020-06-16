@@ -206,9 +206,37 @@ func (pg *ProxyGen) emitMethodDeclarations() {
 		pg.emitMethodDeclaration(method, i)
 	}
 
-	fmt.Fprintln(pg.buffer)
-	fmt.Fprintf(pg.buffer, "func (p *%s) XxxNumberOfMethods() int { return %d }\n",
-		pg.OutputTypeName, len(pg.MethodSet.Methods))
+	const text = `
+func (p *{{ $.TypeName }}) XxxGetMethodName(methodIndex int) string {
+	return [...]string{
+{{- range $i, $methodName := $.MethodNames }}
+		{{ $.TypeName }}{{ $methodName }}: "{{ $methodName }}",
+{{- end }}
+	}[methodIndex]
+}
+
+func (p *{{ $.TypeName }}) XxxNumberOfMethods() int { return {{ len $.MethodNames }} }
+func (p *{{ $.TypeName }}) XxxUnderlyingType() string { return "{{ $.UnderlyingTypeRepr }}" }
+`
+	methodNames := make([]string, len(orderedMethods))
+
+	for i := range orderedMethods {
+		methodNames[i] = orderedMethods[i].Name
+	}
+
+	data := struct {
+		TypeName           string
+		MethodNames        []string
+		UnderlyingTypeRepr string
+	}{
+		TypeName:           pg.OutputTypeName,
+		MethodNames:        methodNames,
+		UnderlyingTypeRepr: pg.inputPackageName() + "." + pg.inputTypeName(),
+	}
+
+	if err := template.Must(template.New("").Parse(text)).Execute(pg.buffer, data); err != nil {
+		panic(err)
+	}
 }
 
 func (pg *ProxyGen) emitMethodDeclaration(method methodset.Method, methodIndex int) {

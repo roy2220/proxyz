@@ -114,4 +114,11 @@ func (p *calcProxy) Sum(_x_ int, _y_ int) string {
 	return methodCall.Result0
 }
 
-func (p *calcProxy) XxxNumberOfMethods() int { return 1 }
+func (p *calcProxy) XxxGetMethodName(methodIndex int) string {
+	return [...]string{
+		calcProxySum: "Sum",
+	}[methodIndex]
+}
+
+func (p *calcProxy) XxxNumberOfMethods() int   { return 1 }
+func (p *calcProxy) XxxUnderlyingType() string { return "main.calc" }

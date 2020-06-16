@@ -33,7 +33,7 @@ func main() {
 			mc.SetArg(1, y)
 
 			// forward the method call to the next interceptor, if any,
-			// or forward to the undelying object `calc`.
+			// or forward to the underlying object `calc`.
 			// NOTE: without this call, the method `Sum` will NOT be
 			//       actually called, and no result provided.
 			mc.Forward()
