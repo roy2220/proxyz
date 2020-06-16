@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/build"
 	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
@@ -526,7 +527,13 @@ func locatePackageDir(packagePath string) (string, error) {
 		return "", fmt.Errorf("proxygen: package import failed; packagePath=%q: %v", packagePath, err)
 	}
 
-	return rawPackage.Dir, nil
+	packageDirPath, err := filepath.Abs(rawPackage.Dir)
+
+	if err != nil {
+		return "", fmt.Errorf("proxygen: absolute path fetch failed; path=%q: %v", rawPackage.Dir, err)
+	}
+
+	return packageDirPath, nil
 }
 
 func packageIDIsValidPackagePath(packageID string) bool {
