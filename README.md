@@ -108,7 +108,9 @@ func main() {
 
                         // forward the method call to the next interceptor, if any,
                         // or forward to the undelying object `calc`.
-                        mc.Forward() // Without this, the method call ceases here.
+                        // NOTE: without this call, the method `Sum` will NOT be
+                        //       actually called, and no result provided.
+                        mc.Forward()
 
                         // modify the first (only) result, whose index is 0.
                         s := mc.GetResult(0).(string)

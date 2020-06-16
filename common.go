@@ -8,6 +8,9 @@ type MethodCallInterceptor func(methodCall MethodCall)
 type MethodCall interface {
 	// Forward forwards the method call to the next interceptor, if any,
 	// or forwards to the undelying object to call the real method.
+	//
+	// It should be manually called in the body of every intercepting
+	// function, otherwise the method will NOT be actually called.
 	Forward()
 
 	// GetArg returns the argument of the method call at the given index.
