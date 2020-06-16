@@ -83,6 +83,14 @@ type PackageBasicInfo struct {
 	Path string
 }
 
+func (pc *ParseContext) getPackagePath(object *ast.Object) (string, bool) {
+	if package1, ok := pc.object2Package[object]; ok {
+		return package1.Path, true
+	}
+
+	return "", false
+}
+
 func (pc *ParseContext) getPackageBasicInfo(object *ast.Object) (PackageBasicInfo, bool) {
 	if package1, ok := pc.object2Package[object]; ok {
 		return PackageBasicInfo{package1.ID, package1.Name, package1.Path}, true
@@ -107,18 +115,18 @@ func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, packagePa
 		return package1, nil
 	}
 
-	scope := ast.NewScope(universe)
+	packageScope := ast.NewScope(universe)
 
 	for _, file := range rawPackage.Syntax {
 		for _, object := range file.Scope.Objects {
-			scope.Insert(object)
+			packageScope.Insert(object)
 		}
 	}
 
 	package1 := package1{
 		Package: rawPackage,
 		Path:    packagePath,
-		Scope:   scope,
+		Scope:   packageScope,
 	}
 
 	pc.packageID2Package[package1.ID] = &package1
@@ -168,16 +176,35 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 				object.Decl = importSpec
 				object.Data = dependedPackage.Scope
 				fileScope.Insert(object)
-				pc.object2Package[object] = dependedPackage
 			}
 		}
 
+		i := 0
+
 		for _, ident := range file.Unresolved {
 			if !resolveIdent(ident, fileScope) {
-				return fmt.Errorf("methodset: undeclared name; name=%q sourcePosition=%q",
-					ident.Name, pc.fileSet.Position(ident.Pos()))
+				file.Unresolved[i] = ident
+				i++
 			}
 		}
+
+		file.Unresolved = file.Unresolved[:i]
+		var visitor ast.Visitor
+
+		visitor = visitorFunc(func(node ast.Node) ast.Visitor {
+			if node, ok := node.(*ast.SelectorExpr); ok {
+				if x, ok := node.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
+					packageScope := x.Obj.Data.(*ast.Scope)
+					resolveIdent(node.Sel, packageScope)
+				}
+
+				return nil
+			}
+
+			return visitor
+		})
+
+		ast.Walk(visitor, file)
 	}
 
 	package1.IsImported = true

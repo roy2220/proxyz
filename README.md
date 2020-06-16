@@ -9,7 +9,6 @@ It analyzes the [method sets](https://golang.org/ref/spec#Method_sets) of Go typ
 ## Features
 - Supports method call interception
 - Supports embedded structures/interfaces analysis
-- Supports variadic function analysis
 
 ## Installation
 
@@ -108,7 +107,7 @@ func main() {
                         mc.SetArg(1, y)
 
                         // forward the method call to the next interceptor, if any,
-                        // or forward to the undelying object `Calc`.
+                        // or forward to the undelying object `calc`.
                         mc.Forward() // Without this, the method call ceases here.
 
                         // modify the first (only) result, whose index is 0.

@@ -77,15 +77,17 @@ func (ms *MethodSet) doParseType(
 
 	switch type1 := typeSpec.Type.(type) {
 	case *ast.Ident:
-		if type1.Obj != nil && type1.Obj.Kind == ast.Typ {
-			if packageBasicInfo, ok := context.getPackageBasicInfo(type1.Obj); ok {
+		object := type1.Obj
+
+		if object != nil && object.Kind == ast.Typ {
+			if packagePath, ok := context.getPackagePath(object); ok {
 				if typeSpec.Assign != token.NoPos {
 					// type Foo = Bar
 					return ms.doParseType(
 						context,
 						package1.ID,
-						packageBasicInfo.Path,
-						type1.Name,
+						packagePath,
+						object.Name,
 						depth,
 						typeInfo,
 					)
@@ -95,37 +97,40 @@ func (ms *MethodSet) doParseType(
 				if ok, err := ms.doParseType(
 					context,
 					package1.ID,
-					packageBasicInfo.Path,
-					type1.Name,
+					packagePath,
+					object.Name,
 					depth+1,
 					typeInfo,
 				); err != nil || ok {
 					return ok, err
 				}
 			} else {
-				if typeSpec.Assign != token.NoPos {
-					// type Foo = Bar
-					return ms.parseBuiltinType(type1.Name, depth, typeInfo), nil
-				}
-				// type Foo Bar
+				if object.Decl == nil {
+					// builtin type
+					if typeSpec.Assign != token.NoPos {
+						// type Foo = Bar
+						return ms.parseBuiltinType(object.Name, depth, typeInfo), nil
+					}
+					// type Foo Bar
 
-				if ok := ms.parseBuiltinType(type1.Name, depth+1, typeInfo); ok {
-					return true, nil
+					if ok := ms.parseBuiltinType(object.Name, depth+1, typeInfo); ok {
+						return true, nil
+					}
 				}
 			}
-		} else {
-			panic("unreachable")
 		}
 	case *ast.SelectorExpr:
-		if x, ok := type1.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
-			if packageBasicInfo, ok := context.getPackageBasicInfo(x.Obj); ok {
+		object := type1.Sel.Obj
+
+		if object != nil && object.Kind == ast.Typ {
+			if packagePath, ok := context.getPackagePath(object); ok {
 				if typeSpec.Assign != token.NoPos {
 					// type Foo = Bar.Baz
 					return ms.doParseType(
 						context,
 						package1.ID,
-						packageBasicInfo.Path,
-						type1.Sel.Name,
+						packagePath,
+						object.Name,
 						depth,
 						typeInfo,
 					)
@@ -135,18 +140,14 @@ func (ms *MethodSet) doParseType(
 				if ok, err := ms.doParseType(
 					context,
 					package1.ID,
-					packageBasicInfo.Path,
-					type1.Sel.Name,
+					packagePath,
+					object.Name,
 					depth+1,
 					typeInfo,
 				); err != nil || ok {
 					return ok, err
 				}
-			} else {
-				panic("unreachable")
 			}
-		} else {
-			panic("unreachable")
 		}
 	case *ast.InterfaceType:
 		// type Foo interface { ... }
@@ -172,42 +173,43 @@ func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID 
 	for _, method1 := range interfaceType.Methods.List {
 		switch methodType := method1.Type.(type) {
 		case *ast.Ident:
-			if methodType.Obj != nil && methodType.Obj.Kind == ast.Typ {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(methodType.Obj); ok {
+			object := methodType.Obj
+
+			if object != nil && object.Kind == ast.Typ {
+				if packagePath, ok := context.getPackagePath(object); ok {
 					if _, err := ms.doParseType(
 						context,
 						currentPackageID,
-						packageBasicInfo.Path,
-						methodType.Name,
-						0,
+						packagePath,
+						object.Name,
+						1,
 						&typeInfo{},
 					); err != nil {
 						return err
 					}
 				} else {
-					ms.parseBuiltinType(methodType.Name, 0, &typeInfo{})
+					if object.Decl == nil {
+						// builtin type
+						ms.parseBuiltinType(object.Name, 1, &typeInfo{})
+					}
 				}
-			} else {
-				panic("unreachable")
 			}
 		case *ast.SelectorExpr:
-			if x, ok := methodType.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(x.Obj); ok {
+			object := methodType.Sel.Obj
+
+			if object != nil && object.Kind == ast.Typ {
+				if packagePath, ok := context.getPackagePath(object); ok {
 					if _, err := ms.doParseType(
 						context,
 						currentPackageID,
-						packageBasicInfo.Path,
-						methodType.Sel.Name,
-						0,
+						packagePath,
+						object.Name,
+						1,
 						&typeInfo{},
 					); err != nil {
 						return err
 					}
-				} else {
-					panic("unreachable")
 				}
-			} else {
-				panic("unreachable")
 			}
 		case *ast.FuncType:
 			if nameIsUnexported(method1.Names[0].Name) {
@@ -221,8 +223,6 @@ func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID 
 			}
 
 			ms.addMethod(method2)
-		default:
-			panic("unreachable")
 		}
 	}
 
@@ -243,45 +243,44 @@ func (ms *MethodSet) parseEmbeddedFields(context *ParseContext, currentPackageID
 
 		switch fieldType := fieldType.(type) {
 		case *ast.Ident:
-			if fieldType.Obj != nil && fieldType.Obj.Kind == ast.Typ {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(fieldType.Obj); ok {
+			object := fieldType.Obj
+
+			if object != nil && object.Kind == ast.Typ {
+				if packagePath, ok := context.getPackagePath(object); ok {
 					if _, err := ms.doParseType(
 						context,
 						currentPackageID,
-						packageBasicInfo.Path,
-						fieldType.Name,
+						packagePath,
+						object.Name,
 						0,
 						&typeInfo{},
 					); err != nil {
 						return err
 					}
 				} else {
-					ms.parseBuiltinType(fieldType.Name, 0, &typeInfo{})
+					if object.Decl == nil {
+						// builtin type
+						ms.parseBuiltinType(fieldType.Name, 0, &typeInfo{})
+					}
 				}
-			} else {
-				panic("unreachable")
 			}
 		case *ast.SelectorExpr:
-			if x, ok := fieldType.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(x.Obj); ok {
+			object := fieldType.Sel.Obj
+
+			if object != nil && object.Kind == ast.Typ {
+				if packagePath, ok := context.getPackagePath(object); ok {
 					if _, err := ms.doParseType(
 						context,
 						currentPackageID,
-						packageBasicInfo.Path,
-						fieldType.Sel.Name,
+						packagePath,
+						object.Name,
 						0,
 						&typeInfo{},
 					); err != nil {
 						return err
 					}
-				} else {
-					panic("unreachable")
 				}
-			} else {
-				panic("unreachable")
 			}
-		default:
-			panic("unreachable")
 		}
 	}
 
@@ -432,28 +431,26 @@ func (t *Type) parseExpr(context *ParseContext, expr ast.Expr) error {
 	restorers := [](func())(nil)
 
 	visitor = visitorFunc(func(node ast.Node) ast.Visitor {
-		switch type1 := node.(type) {
+		switch node := node.(type) {
 		case *ast.Ident:
-			if type1.Obj != nil {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(type1.Obj); ok {
-					backup := type1.Name
-					restorers = append(restorers, func() { type1.Name = backup })
-					type1.Name = "<PACKAGE>." + type1.Name
+			if node.Obj != nil {
+				if packageBasicInfo, ok := context.getPackageBasicInfo(node.Obj); ok {
+					backup := node.Name
+					restorers = append(restorers, func() { node.Name = backup })
+					node.Name = "<PACKAGE>." + node.Name
 					t.PackageBasicInfos = append(t.PackageBasicInfos, packageBasicInfo)
 				}
 			}
 
 			return nil
 		case *ast.SelectorExpr:
-			if x, ok := type1.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
-				if packageBasicInfo, ok := context.getPackageBasicInfo(x.Obj); ok {
+			if x, ok := node.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
+				if packageBasicInfo, ok := context.getPackageBasicInfo(node.Sel.Obj); ok {
 					backup := x.Name
 					restorers = append(restorers, func() { x.Name = backup })
 					x.Name = "<PACKAGE>"
 					t.PackageBasicInfos = append(t.PackageBasicInfos, packageBasicInfo)
 				}
-			} else {
-				panic("unreachable")
 			}
 
 			return nil
@@ -480,10 +477,6 @@ func (vf visitorFunc) Visit(node ast.Node) ast.Visitor {
 	return vf(node)
 }
 
-func nameIsUnexported(name string) bool {
-	return name[0] < 'A' || name[0] > 'Z'
-}
-
 var errorMethods = []Method{
 	{
 		Name: "Error",
@@ -492,4 +485,8 @@ var errorMethods = []Method{
 			Format: "string",
 		}},
 	},
+}
+
+func nameIsUnexported(name string) bool {
+	return name[0] < 'A' || name[0] > 'Z'
 }
