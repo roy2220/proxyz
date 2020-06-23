@@ -96,7 +96,10 @@ func (pg *ProxyGen) emitImportDeclaration() {
 	}
 
 	packagePath2ImportName := map[string]string{}
-	importNames := map[string]struct{}{}
+
+	importNames := map[string]struct{}{
+		pg.outputPackageName: {},
+	}
 
 	for _, packageBasicInfo := range packageBasicInfos {
 		if packageBasicInfo.ID == pg.outputPackageID {
@@ -113,7 +116,7 @@ func (pg *ProxyGen) emitImportDeclaration() {
 
 		if _, ok := importNames[importName]; ok {
 			for i := 1; ; i++ {
-				importName := packageName + strconv.Itoa(i)
+				importName = packageName + strconv.Itoa(i)
 
 				if _, ok := importNames[importName]; !ok {
 					break
@@ -565,7 +568,7 @@ func locatePackageDir(packagePath string) (string, error) {
 }
 
 func packageIDIsValidPackagePath(packageID string) bool {
-	if strings.HasPrefix("_/", packageID) {
+	if strings.HasPrefix(packageID, "_/") {
 		return false
 	}
 

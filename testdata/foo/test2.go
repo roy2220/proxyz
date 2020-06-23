@@ -13,6 +13,4 @@ type ErrZ interface {
 	TT
 }
 
-type TT interface {
-	Test(http.File)
-}
+func (Test1A) A2() {}
