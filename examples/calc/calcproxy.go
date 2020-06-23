@@ -121,4 +121,4 @@ func (p *calcProxy) XxxGetMethodName(methodIndex int) string {
 }
 
 func (p *calcProxy) XxxNumberOfMethods() int   { return 1 }
-func (p *calcProxy) XxxUnderlyingType() string { return "main.calc" }
+func (p *calcProxy) XxxUnderlyingType() string { return "github.com/roy2220/proxyz/examples/calc.calc" }

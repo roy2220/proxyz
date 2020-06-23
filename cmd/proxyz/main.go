@@ -5,7 +5,9 @@ import (
 	"go/format"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/alexflint/go-arg"
 
@@ -24,6 +26,8 @@ func main() {
 	}
 
 	arg.MustParse(&args)
+	args.InputPackagePath = cleanPackagePath(args.InputPackagePath)
+	args.OutputPackagePath = cleanPackagePath(args.OutputPackagePath)
 
 	if args.OutputFileName != "" {
 		if filepath.Ext(args.OutputFileName) != ".go" {
@@ -75,6 +79,16 @@ func main() {
 			fatalf("failed to write output: %v", err)
 		}
 	}
+}
+
+func cleanPackagePath(packagePath string) string {
+	s := path.Clean(packagePath)
+
+	if strings.HasPrefix(packagePath, "./") && s != "." {
+		return "./" + s
+	}
+
+	return s
 }
 
 func info(arg interface{}) {

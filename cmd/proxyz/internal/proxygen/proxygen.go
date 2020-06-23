@@ -231,7 +231,7 @@ func (p *{{ $.TypeName }}) XxxUnderlyingType() string { return "{{ $.UnderlyingT
 	}{
 		TypeName:           pg.OutputTypeName,
 		MethodNames:        methodNames,
-		UnderlyingTypeRepr: pg.inputPackageName() + "." + pg.inputTypeName(),
+		UnderlyingTypeRepr: pg.inputPackagePath + "." + pg.inputTypeName(),
 	}
 
 	if err := template.Must(template.New("").Parse(text)).Execute(pg.buffer, data); err != nil {

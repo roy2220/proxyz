@@ -12,12 +12,12 @@ lint: force
 test: force
 	@rm -f coverage.txt
 	@( \
-	    TEMPFILE=$$(mktemp) && trap "rm \"$${TEMPFILE}\"" EXIT && \
+	    TEMPFILE=$$(mktemp) && trap 'rm "$${TEMPFILE}"' EXIT && \
 	    go test -coverprofile="$${TEMPFILE}" -covermode=count $(TESTFLAGS) -coverpkg ./cmd/proxyz/... ./cmd/proxyz && \
 	    cat "$${TEMPFILE}" >> coverage.txt \
 	)
 	@( \
-	    TEMPFILE=$$(mktemp) && trap "rm \"$${TEMPFILE}\"" EXIT && \
+	    TEMPFILE=$$(mktemp) && trap 'rm "$${TEMPFILE}"' EXIT && \
 	    go test -coverprofile="$${TEMPFILE}" -covermode=count $(TESTFLAGS) . && \
 	    cat "$${TEMPFILE}" >> coverage.txt \
 	)

@@ -14,26 +14,26 @@ func TestMain(t *testing.T) {
 	}{
 		{
 			CmdLines: [][]string{
-				{"proxyz", "github.com/roy2220/proxyz/testdata/foo", "Test1A", "github.com/roy2220/proxyz/testdata/test1", "Test1AProxy", "-w", "test1_generated.go"},
+				{"proxyz", "../../testdata/foo", "Test1A", "../../testdata/test1", "Test1AProxy", "-w", "test1_generated.go"},
 			},
-			GoRunPkg: "github.com/roy2220/proxyz/testdata/test1",
+			GoRunPkg: "../../testdata/test1",
 		},
 		{
 			CmdLines: [][]string{
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "File", "github.com/roy2220/proxyz/testdata/test2", "FileWrap", "-w", "test2_1_generated.go"},
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Server", "github.com/roy2220/proxyz/testdata/test2", "ServerWrap", "-w", "test2_2_generated.go"},
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err2", "github.com/roy2220/proxyz/testdata/test2", "Err2Wrap", "-w", "test2_3_generated.go"},
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err3", "github.com/roy2220/proxyz/testdata/test2", "Err3Wrap", "-w", "test2_4_generated.go"},
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err4", "github.com/roy2220/proxyz/testdata/test2", "Err4Wrap", "-w", "test2_5_generated.go"},
-				{"proxyz", "testing", "TB", "github.com/roy2220/proxyz/testdata/test2", "TPWrap", "-w", "test2_6_generated.go"},
+				{"proxyz", "../../testdata/test2", "File", "../../testdata/test2", "FileWrap", "-w", "test2_1_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Server", "../../testdata/test2", "ServerWrap", "-w", "test2_2_generated.go"},
+				{"proxyz", "../../testdata/test2/", "Err2", "github.com/roy2220/proxyz/testdata/test2", "Err2Wrap", "-w", "test2_3_generated.go"},
+				{"proxyz", "github.com/roy2220/proxyz/testdata/test2", "Err3", "github.com/roy2220/proxyz/testdata/test2/", "Err3Wrap", "-w", "test2_4_generated.go"},
+				{"proxyz", "../../testdata/test2/", "Err4", "../../testdata/test2/", "Err4Wrap", "-w", "test2_5_generated.go"},
+				{"proxyz", "testing", "TB", "../../testdata/test2", "TPWrap", "-w", "test2_6_generated.go"},
 			},
-			GoRunPkg: "github.com/roy2220/proxyz/testdata/test2",
+			GoRunPkg: "../../testdata/test2",
 		},
 		{
 			CmdLines: [][]string{
-				{"proxyz", "github.com/roy2220/proxyz/testdata/test3", "Calc", "github.com/roy2220/proxyz/testdata/test3", "CalcProxy", "-w", "test3_generated.go"},
+				{"proxyz", "../../testdata/test3", "Calc", "../../testdata/test3", "CalcProxy", "-w", "test3_generated.go"},
 			},
-			GoRunPkg: "github.com/roy2220/proxyz/testdata/test3",
+			GoRunPkg: "../../testdata/test3",
 		},
 	} {
 		t.Run("test"+strconv.Itoa(i), func(t *testing.T) {
