@@ -5,9 +5,7 @@ import (
 	"go/format"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/alexflint/go-arg"
 
@@ -17,17 +15,15 @@ import (
 
 func main() {
 	var args struct {
-		InputPackagePath  string `arg:"positional,required,--ipkg" help:"input package path in Go"`
-		InputTypeName     string `arg:"positional,required,--itype" help:"input type name in Go"`
-		OutputPackagePath string `arg:"positional,required,--opkg" help:"output package path in Go"`
-		OutputTypeName    string `arg:"positional,required,--otype" help:"output type name in Go"`
-		FormatOutput      bool   `arg:"-f,--format" default:"true" help:"format output"`
-		OutputFileName    string `arg:"-w,--write" help:"write output to file inside output package directory" placeholder:"FILE"`
+		InputPackagePattern  string `arg:"positional,required,--ipkg" help:"input package"`
+		InputTypeName        string `arg:"positional,required,--itype" help:"input type"`
+		OutputPackagePattern string `arg:"positional,required,--opkg" help:"output package"`
+		OutputTypeName       string `arg:"positional,required,--otype" help:"output type"`
+		FormatOutput         bool   `arg:"-f,--format" default:"true" help:"format output"`
+		OutputFileName       string `arg:"-w,--write" help:"write output to file inside output package directory" placeholder:"FILE"`
 	}
 
 	arg.MustParse(&args)
-	args.InputPackagePath = cleanPackagePath(args.InputPackagePath)
-	args.OutputPackagePath = cleanPackagePath(args.OutputPackagePath)
 
 	if args.OutputFileName != "" {
 		if filepath.Ext(args.OutputFileName) != ".go" {
@@ -42,14 +38,14 @@ func main() {
 	parseContext := new(methodset.ParseContext).Init()
 	var methodSet methodset.MethodSet
 
-	if err := methodSet.ParseType(parseContext, args.InputPackagePath, args.InputTypeName); err != nil {
+	if err := methodSet.ParseType(parseContext, args.InputPackagePattern, args.InputTypeName); err != nil {
 		fatal(err)
 	}
 
 	proxyGen := proxygen.ProxyGen{
-		MethodSet:         &methodSet,
-		OutputPackagePath: args.OutputPackagePath,
-		OutputTypeName:    args.OutputTypeName,
+		MethodSet:            &methodSet,
+		OutputPackagePattern: args.OutputPackagePattern,
+		OutputTypeName:       args.OutputTypeName,
 	}
 
 	output, err := proxyGen.EmitProgram()
@@ -79,16 +75,6 @@ func main() {
 			fatalf("failed to write output: %v", err)
 		}
 	}
-}
-
-func cleanPackagePath(packagePath string) string {
-	s := path.Clean(packagePath)
-
-	if strings.HasPrefix(packagePath, "./") && s != "." {
-		return "./" + s
-	}
-
-	return s
 }
 
 func info(arg interface{}) {

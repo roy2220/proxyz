@@ -11,45 +11,48 @@ import (
 
 // MethodSet ...
 type MethodSet struct {
-	PackagePath     string
+	PackagePattern  string
 	TypeName        string
 	Methods         []Method
-	PackageID       string
 	PackageName     string
+	PackagePath     string
+	ImportPath      string
 	TypeIsInterface bool
 }
 
 // ParseType ...
-func (ms *MethodSet) ParseType(context *ParseContext, packagePath string, typeName string) error {
-	ms.PackagePath = packagePath
+func (ms *MethodSet) ParseType(context *ParseContext, packagePattern string, typeName string) error {
+	ms.PackagePattern = packagePattern
 	ms.TypeName = typeName
 	var typeInfo typeInfo
 
-	if _, err := ms.doParseType(context, "", packagePath, typeName, 0, &typeInfo); err != nil {
+	if _, err := ms.doParseType(context, "", packagePattern, typeName, 0, &typeInfo); err != nil {
 		return err
 	}
 
-	ms.PackageID = typeInfo.PackageID
 	ms.PackageName = typeInfo.PackageName
+	ms.PackagePath = typeInfo.PackagePath
+	ms.ImportPath = packagePathToImportPath(typeInfo.PackagePath)
 	ms.TypeIsInterface = typeInfo.IsInterface
 	return nil
 }
 
 type typeInfo struct {
-	PackageID   string
 	PackageName string
+	PackagePath string
+	ImportPath  string
 	IsInterface bool
 }
 
 func (ms *MethodSet) doParseType(
 	context *ParseContext,
-	currentPackageID string,
-	packagePath string,
+	currentPackagePath string,
+	importPathOrPackagePattern string,
 	typeName string,
 	depth int,
 	typeInfo *typeInfo,
 ) (_ bool, returnedErr error) {
-	package1, err := context.importPackage(currentPackageID, packagePath)
+	package1, err := context.importPackage(currentPackagePath, importPathOrPackagePattern)
 
 	if err != nil {
 		return false, err
@@ -57,20 +60,22 @@ func (ms *MethodSet) doParseType(
 
 	defer func() {
 		if returnedErr == nil {
-			typeInfo.PackageID = package1.ID
 			typeInfo.PackageName = package1.Name
+			typeInfo.PackagePath = package1.PkgPath
+			typeInfo.ImportPath = package1.ImportPath
 		}
 	}()
 
 	object := package1.Scope.Lookup(typeName)
 
 	if object == nil {
-		return false, fmt.Errorf("methodset: type not found; packagePath=%q typeName=%q", packagePath, typeName)
+		return false, fmt.Errorf("methodset: type not found; packagePath=%q typeName=%q",
+			package1.PkgPath, typeName)
 	}
 
 	if object.Kind != ast.Typ {
 		return false, fmt.Errorf("methodset: non-type; packagePath=%q objectName=%q objectKind=%q",
-			packagePath, object.Name, object.Kind)
+			package1.PkgPath, object.Name, object.Kind)
 	}
 
 	typeSpec := object.Decl.(*ast.TypeSpec)
@@ -80,13 +85,13 @@ func (ms *MethodSet) doParseType(
 		object := type1.Obj
 
 		if object != nil && object.Kind == ast.Typ {
-			if packagePath, ok := context.getPackagePath(object); ok {
+			if importPath, ok := context.getImportPath(object); ok {
 				if typeSpec.Assign != token.NoPos {
 					// type Foo = Bar
 					return ms.doParseType(
 						context,
-						package1.ID,
-						packagePath,
+						package1.PkgPath,
+						importPath,
 						object.Name,
 						depth,
 						typeInfo,
@@ -96,8 +101,8 @@ func (ms *MethodSet) doParseType(
 
 				if ok, err := ms.doParseType(
 					context,
-					package1.ID,
-					packagePath,
+					package1.PkgPath,
+					importPath,
 					object.Name,
 					depth+1,
 					typeInfo,
@@ -123,13 +128,13 @@ func (ms *MethodSet) doParseType(
 		object := type1.Sel.Obj
 
 		if object != nil && object.Kind == ast.Typ {
-			if packagePath, ok := context.getPackagePath(object); ok {
+			if importPath, ok := context.getImportPath(object); ok {
 				if typeSpec.Assign != token.NoPos {
 					// type Foo = Bar.Baz
 					return ms.doParseType(
 						context,
-						package1.ID,
-						packagePath,
+						package1.PkgPath,
+						importPath,
 						object.Name,
 						depth,
 						typeInfo,
@@ -139,8 +144,8 @@ func (ms *MethodSet) doParseType(
 
 				if ok, err := ms.doParseType(
 					context,
-					package1.ID,
-					packagePath,
+					package1.PkgPath,
+					importPath,
 					object.Name,
 					depth+1,
 					typeInfo,
@@ -152,11 +157,11 @@ func (ms *MethodSet) doParseType(
 	case *ast.InterfaceType:
 		// type Foo interface { ... }
 		typeInfo.IsInterface = true
-		err = ms.parseInterfaceType(context, package1.ID, type1)
+		err = ms.parseInterfaceType(context, package1.PkgPath, type1)
 		return err == nil, err
 	case *ast.StructType:
 		// type Foo struct { ... }
-		if err := ms.parseEmbeddedFields(context, package1.ID, type1.Fields); err != nil {
+		if err := ms.parseEmbeddedFields(context, package1.PkgPath, type1.Fields); err != nil {
 			return false, err
 		}
 	}
@@ -169,18 +174,18 @@ func (ms *MethodSet) doParseType(
 	return err == nil, err
 }
 
-func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID string, interfaceType *ast.InterfaceType) error {
+func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackagePath string, interfaceType *ast.InterfaceType) error {
 	for _, method1 := range interfaceType.Methods.List {
 		switch methodType := method1.Type.(type) {
 		case *ast.Ident:
 			object := methodType.Obj
 
 			if object != nil && object.Kind == ast.Typ {
-				if packagePath, ok := context.getPackagePath(object); ok {
+				if importPath, ok := context.getImportPath(object); ok {
 					if _, err := ms.doParseType(
 						context,
-						currentPackageID,
-						packagePath,
+						currentPackagePath,
+						importPath,
 						object.Name,
 						1,
 						&typeInfo{},
@@ -198,11 +203,11 @@ func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID 
 			object := methodType.Sel.Obj
 
 			if object != nil && object.Kind == ast.Typ {
-				if packagePath, ok := context.getPackagePath(object); ok {
+				if importPath, ok := context.getImportPath(object); ok {
 					if _, err := ms.doParseType(
 						context,
-						currentPackageID,
-						packagePath,
+						currentPackagePath,
+						importPath,
 						object.Name,
 						1,
 						&typeInfo{},
@@ -229,7 +234,7 @@ func (ms *MethodSet) parseInterfaceType(context *ParseContext, currentPackageID 
 	return nil
 }
 
-func (ms *MethodSet) parseEmbeddedFields(context *ParseContext, currentPackageID string, fieldList *ast.FieldList) error {
+func (ms *MethodSet) parseEmbeddedFields(context *ParseContext, currentPackagePath string, fieldList *ast.FieldList) error {
 	for _, field := range fieldList.List {
 		if len(field.Names) >= 1 {
 			continue
@@ -246,11 +251,11 @@ func (ms *MethodSet) parseEmbeddedFields(context *ParseContext, currentPackageID
 			object := fieldType.Obj
 
 			if object != nil && object.Kind == ast.Typ {
-				if packagePath, ok := context.getPackagePath(object); ok {
+				if importPath, ok := context.getImportPath(object); ok {
 					if _, err := ms.doParseType(
 						context,
-						currentPackageID,
-						packagePath,
+						currentPackagePath,
+						importPath,
 						object.Name,
 						0,
 						&typeInfo{},
@@ -268,11 +273,11 @@ func (ms *MethodSet) parseEmbeddedFields(context *ParseContext, currentPackageID
 			object := fieldType.Sel.Obj
 
 			if object != nil && object.Kind == ast.Typ {
-				if packagePath, ok := context.getPackagePath(object); ok {
+				if importPath, ok := context.getImportPath(object); ok {
 					if _, err := ms.doParseType(
 						context,
-						currentPackageID,
-						packagePath,
+						currentPackagePath,
+						importPath,
 						object.Name,
 						0,
 						&typeInfo{},

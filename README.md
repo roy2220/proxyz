@@ -23,10 +23,10 @@ go install github.com/roy2220/proxyz/cmd/proxyz
 proxyz [--format] [--write FILE] IPKG ITYPE OPKG OTYPE
 
 Positional arguments:
-  IPKG                   input package path in Go
-  ITYPE                  input type name in Go
-  OPKG                   output package path in Go
-  OTYPE                  output type name in Go
+  IPKG                   input package
+  ITYPE                  input type
+  OPKG                   output package
+  OTYPE                  output type
 
 Options:
   --format, -f           format output [default: true]

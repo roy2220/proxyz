@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
-	"strings"
 	"text/template"
 
 	"golang.org/x/tools/go/packages"
@@ -19,33 +18,31 @@ import (
 
 // ProxyGen ...
 type ProxyGen struct {
-	MethodSet         *methodset.MethodSet
-	OutputPackagePath string
-	OutputTypeName    string
+	MethodSet            *methodset.MethodSet
+	OutputPackagePattern string
+	OutputTypeName       string
 
-	inputPackagePath      string
-	outputPackageDirPath  string
-	outputPackageID       string
-	outputPackageName     string
-	buffer                *bytes.Buffer
-	packagePath2FormatArg map[string]string
+	outputPackageDirPath string
+	outputPackageName    string
+	outputPackagePath    string
+	buffer               *bytes.Buffer
+	importPath2FormatArg map[string]string
 }
 
 // EmitProgram ...
 func (pg *ProxyGen) EmitProgram() ([]byte, error) {
-	pg.inputPackagePath = pg.MethodSet.PackagePath
 	var err error
-	pg.outputPackageDirPath, err = locatePackageDir(pg.OutputPackagePath)
+	pg.outputPackageDirPath, err = locatePackageDir(pg.OutputPackagePattern)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if pg.OutputPackagePath == pg.inputPackagePath {
-		pg.outputPackageID, pg.outputPackageName = pg.inputPackageID(), pg.inputPackageName()
+	if pg.OutputPackagePattern == pg.inputPackagePattern() {
+		pg.outputPackageName, pg.outputPackagePath = pg.inputPackageName(), pg.inputPackagePath()
 	} else {
 		var err error
-		pg.outputPackageID, pg.outputPackageName, err = findPackageIDAndName(pg.OutputPackagePath)
+		pg.outputPackageName, pg.outputPackagePath, err = findPackageNameAndPath(pg.OutputPackagePattern)
 
 		if err != nil {
 			return nil, err
@@ -54,11 +51,6 @@ func (pg *ProxyGen) EmitProgram() ([]byte, error) {
 		if pg.outputPackageName == "" {
 			pg.outputPackageName = path.Base(pg.outputPackageDirPath)
 		}
-	}
-
-	if packageIDIsValidPackagePath(pg.inputPackageID()) {
-		// to formal package path
-		pg.inputPackagePath = pg.inputPackageID()
 	}
 
 	pg.buffer = bytes.NewBuffer(nil)
@@ -81,8 +73,8 @@ func (pg *ProxyGen) emitPackageClause() {
 
 func (pg *ProxyGen) emitImportDeclaration() {
 	packageBasicInfos := []methodset.PackageBasicInfo{
-		{Name: "proxyz", Path: "github.com/roy2220/proxyz"},
-		{ID: pg.inputPackageID(), Name: pg.inputPackageName(), Path: pg.inputPackagePath},
+		{Name: "proxyz", ImportPath: "github.com/roy2220/proxyz"},
+		{Name: pg.inputPackageName(), Path: pg.inputPackagePath(), ImportPath: pg.inputImportPath()},
 	}
 
 	for _, method := range pg.MethodSet.Methods {
@@ -95,20 +87,20 @@ func (pg *ProxyGen) emitImportDeclaration() {
 		}
 	}
 
-	packagePath2ImportName := map[string]string{}
+	importPath2ImportName := map[string]string{}
 
 	importNames := map[string]struct{}{
 		pg.outputPackageName: {},
 	}
 
 	for _, packageBasicInfo := range packageBasicInfos {
-		if packageBasicInfo.ID == pg.outputPackageID {
+		if packageBasicInfo.Path == pg.outputPackagePath {
 			continue
 		}
 
-		packageName, packagePath := packageBasicInfo.Name, packageBasicInfo.Path
+		packageName, importPath := packageBasicInfo.Name, packageBasicInfo.ImportPath
 
-		if _, ok := packagePath2ImportName[packagePath]; ok {
+		if _, ok := importPath2ImportName[importPath]; ok {
 			continue
 		}
 
@@ -124,36 +116,36 @@ func (pg *ProxyGen) emitImportDeclaration() {
 			}
 		}
 
-		packagePath2ImportName[packagePath] = importName
+		importPath2ImportName[importPath] = importName
 		importNames[importName] = struct{}{}
 	}
 
-	if len(packagePath2ImportName) == 0 {
+	if len(importPath2ImportName) == 0 {
 		return
 	}
 
-	orderedPackagePaths := make([]string, len(packagePath2ImportName))
+	orderedImportPaths := make([]string, len(importPath2ImportName))
 	i := 0
 
-	for packagePath := range packagePath2ImportName {
-		orderedPackagePaths[i] = packagePath
+	for importPath := range importPath2ImportName {
+		orderedImportPaths[i] = importPath
 		i++
 	}
 
-	sort.Strings(orderedPackagePaths)
+	sort.Strings(orderedImportPaths)
 	fmt.Fprintln(pg.buffer, "")
 	fmt.Fprintln(pg.buffer, "import (")
 
-	for _, packagePath := range orderedPackagePaths {
-		importName := packagePath2ImportName[packagePath]
-		fmt.Fprintf(pg.buffer, "\t%s %q\n", importName, packagePath)
+	for _, importPath := range orderedImportPaths {
+		importName := importPath2ImportName[importPath]
+		fmt.Fprintf(pg.buffer, "\t%s %q\n", importName, importPath)
 	}
 
 	fmt.Fprintln(pg.buffer, ")")
-	pg.packagePath2FormatArg = map[string]string{}
+	pg.importPath2FormatArg = map[string]string{}
 
-	for packagePath, importName := range packagePath2ImportName {
-		pg.packagePath2FormatArg[packagePath] = importName + "."
+	for importPath, importName := range importPath2ImportName {
+		pg.importPath2FormatArg[importPath] = importName + "."
 	}
 }
 
@@ -234,7 +226,7 @@ func (p *{{ $.TypeName }}) XxxUnderlyingType() string { return "{{ $.UnderlyingT
 	}{
 		TypeName:           pg.OutputTypeName,
 		MethodNames:        methodNames,
-		UnderlyingTypeRepr: pg.inputPackagePath + "." + pg.inputTypeName(),
+		UnderlyingTypeRepr: pg.inputPackagePath() + "." + pg.inputTypeName(),
 	}
 
 	if err := template.Must(template.New("").Parse(text)).Execute(pg.buffer, data); err != nil {
@@ -492,7 +484,7 @@ func (pg *ProxyGen) formatType(type1 methodset.Type) string {
 	formatArgs := make([]interface{}, len(type1.PackageBasicInfos))
 
 	for i, packageBasicInfo := range type1.PackageBasicInfos {
-		formatArgs[i] = pg.formatArg(packageBasicInfo.Path)
+		formatArgs[i] = pg.formatArg(packageBasicInfo.ImportPath)
 	}
 
 	return fmt.Sprintf(type1.Format, formatArgs...)
@@ -507,55 +499,38 @@ func (pg *ProxyGen) formatInputType() string {
 		prefix = "*"
 	}
 
-	return fmt.Sprintf("%s%s%s", prefix, pg.formatArg(pg.inputPackagePath), pg.inputTypeName())
+	return fmt.Sprintf("%s%s%s", prefix, pg.formatArg(pg.inputImportPath()), pg.inputTypeName())
 }
 
-func (pg *ProxyGen) inputPackageID() string {
-	return pg.MethodSet.PackageID
-}
-
-func (pg *ProxyGen) inputPackageName() string {
-	return pg.MethodSet.PackageName
+func (pg *ProxyGen) inputPackagePattern() string {
+	return pg.MethodSet.TypeName
 }
 
 func (pg *ProxyGen) inputTypeName() string {
 	return pg.MethodSet.TypeName
 }
 
-func (pg *ProxyGen) formatArg(packagePath string) string {
-	return pg.packagePath2FormatArg[packagePath]
+func (pg *ProxyGen) inputPackageName() string {
+	return pg.MethodSet.PackageName
 }
 
-func findPackageIDAndName(packagePath string) (string, string, error) {
-	rawPackages, err := packages.Load(&packages.Config{
-		Mode: packages.NeedName,
-	}, packagePath)
-
-	if err != nil {
-		return "", "", fmt.Errorf("proxygen: package load failed; packagePath=%q: %v", packagePath, err)
-	}
-
-	if n := len(rawPackages); n != 1 {
-		var err error
-
-		if n == 0 {
-			err = fmt.Errorf("proxygen: no package found; packagePath=%q", packagePath)
-		} else {
-			err = fmt.Errorf("proxygen: multiple packages found; packagePath=%q", packagePath)
-		}
-
-		return "", "", err
-	}
-
-	rawPackage := rawPackages[0]
-	return rawPackage.ID, rawPackage.Name, nil
+func (pg *ProxyGen) inputPackagePath() string {
+	return pg.MethodSet.PackagePath
 }
 
-func locatePackageDir(packagePath string) (string, error) {
-	rawPackage, err := build.Import(packagePath, ".", build.FindOnly)
+func (pg *ProxyGen) inputImportPath() string {
+	return pg.MethodSet.ImportPath
+}
+
+func (pg *ProxyGen) formatArg(importPath string) string {
+	return pg.importPath2FormatArg[importPath]
+}
+
+func locatePackageDir(packagePattern string) (string, error) {
+	rawPackage, err := build.Import(packagePattern, ".", build.FindOnly)
 
 	if err != nil {
-		return "", fmt.Errorf("proxygen: package import failed; packagePath=%q: %v", packagePath, err)
+		return "", fmt.Errorf("proxygen: package import failed; packagePattern=%q: %v", packagePattern, err)
 	}
 
 	packageDirPath, err := filepath.Abs(rawPackage.Dir)
@@ -567,35 +542,35 @@ func locatePackageDir(packagePath string) (string, error) {
 	return packageDirPath, nil
 }
 
-func packageIDIsValidPackagePath(packageID string) bool {
-	if strings.HasPrefix(packageID, "_/") {
-		return false
+func findPackageNameAndPath(packagePattern string) (string, string, error) {
+	rawPackages, err := packages.Load(&packages.Config{
+		Mode: packages.NeedName,
+	}, packagePattern)
+
+	if err != nil {
+		return "", "", fmt.Errorf("proxygen: package load failed; packagePattern=%q: %v", packagePattern, err)
 	}
 
-	s := packageID
+	if n := len(rawPackages); n != 1 {
+		var err error
 
-	for {
-		const vendorStr = "vendor"
-		i := strings.Index(s, vendorStr)
+		if n == 0 {
+			err = fmt.Errorf("proxygen: no package found; packagePattern=%q", packagePattern)
+		} else {
+			packagePaths := make([]string, n)
 
-		if i < 0 {
-			return true
+			for i, rawPackage := range rawPackages {
+				packagePaths[i] = rawPackage.PkgPath
+			}
+
+			err = fmt.Errorf("proxygen: multiple packages found; packagePattern=%q packagePaths=%q", packagePattern, packagePaths)
 		}
 
-		j := i + len(vendorStr)
-
-		if i >= 1 && s[i-1] != '/' {
-			s = s[j:]
-			continue
-		}
-
-		if j < len(s) && s[j] != '/' {
-			s = s[j:]
-			continue
-		}
-
-		return false
+		return "", "", err
 	}
+
+	rawPackage := rawPackages[0]
+	return rawPackage.Name, rawPackage.PkgPath, nil
 }
 
 func capitalizeFirstLetter(word string) string {

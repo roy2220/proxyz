@@ -7,22 +7,24 @@ import (
 	"go/build"
 	"go/token"
 	"strconv"
+	"strings"
 
 	"errors"
+
 	"golang.org/x/tools/go/packages"
 )
 
 // ParseContext ...
 type ParseContext struct {
-	fileSet           *token.FileSet
-	packageID2Package map[string]*package1
-	object2Package    map[*ast.Object]*package1
+	fileSet             *token.FileSet
+	packagePath2Package map[string]*package1
+	object2Package      map[*ast.Object]*package1
 }
 
 // Init ...
 func (pc *ParseContext) Init() *ParseContext {
 	pc.fileSet = token.NewFileSet()
-	pc.packageID2Package = map[string]*package1{}
+	pc.packagePath2Package = map[string]*package1{}
 	pc.object2Package = map[*ast.Object]*package1{}
 	return pc
 }
@@ -32,43 +34,55 @@ func (pc *ParseContext) FileSet() *token.FileSet {
 	return pc.fileSet
 }
 
-func (pc *ParseContext) importPackage(currentPackageID string, packagePath string) (*package1, error) {
+func (pc *ParseContext) importPackage(currentPackagePath string, importPathOrPackagePattern string) (*package1, error) {
 	var rawPackage *packages.Package
+	var importPath string
 
-	if currentPackageID == "" {
+	if currentPackagePath == "" {
+		packagePattern := importPathOrPackagePattern
+
 		rawPackages, err := packages.Load(&packages.Config{
 			Mode: packages.NeedName | packages.NeedImports | packages.NeedDeps | packages.NeedSyntax,
 			Fset: pc.fileSet,
-		}, packagePath)
+		}, packagePattern)
 
 		if err != nil {
-			return nil, fmt.Errorf("methodset: package load failed; packagePath=%q: %v", packagePath, err)
+			return nil, fmt.Errorf("methodset: package load failed; packagePattern=%q: %v", packagePattern, err)
 		}
 
 		if n := len(rawPackages); n != 1 {
 			var err error
 
 			if n == 0 {
-				err = fmt.Errorf("methodset: no package found; packagePath=%q", packagePath)
+				err = fmt.Errorf("methodset: no package found; packagePattern=%q", packagePattern)
 			} else {
-				err = fmt.Errorf("methodset: multiple packages found; packagePath=%q", packagePath)
+				packagePaths := make([]string, n)
+
+				for i, rawPackage := range rawPackages {
+					packagePaths[i] = rawPackage.PkgPath
+				}
+
+				err = fmt.Errorf("methodset: multiple packages found; packagePattern=%q packagePaths=%q",
+					packagePattern, packagePaths)
 			}
 
 			return nil, err
 		}
 
 		rawPackage = rawPackages[0]
+		importPath = packagePathToImportPath(rawPackage.PkgPath)
 	} else {
-		currentPackage := pc.packageID2Package[currentPackageID]
+		importPath = importPathOrPackagePattern
+		currentPackage := pc.packagePath2Package[currentPackagePath]
 
-		if currentPackage.Path == packagePath {
+		if currentPackage.ImportPath == importPath {
 			return currentPackage, nil
 		}
 
-		rawPackage = currentPackage.Imports[packagePath]
+		rawPackage = currentPackage.Imports[importPath]
 	}
 
-	package1, err := pc.doImportPackage1(rawPackage, packagePath)
+	package1, err := pc.doImportPackage1(rawPackage, importPath)
 
 	if err != nil {
 		return nil, err
@@ -83,14 +97,14 @@ func (pc *ParseContext) importPackage(currentPackageID string, packagePath strin
 
 // PackageBasicInfo ...
 type PackageBasicInfo struct {
-	ID   string
-	Name string
-	Path string
+	Name       string
+	Path       string
+	ImportPath string
 }
 
-func (pc *ParseContext) getPackagePath(object *ast.Object) (string, bool) {
+func (pc *ParseContext) getImportPath(object *ast.Object) (string, bool) {
 	if package1, ok := pc.object2Package[object]; ok {
-		return package1.Path, true
+		return package1.ImportPath, true
 	}
 
 	return "", false
@@ -98,15 +112,15 @@ func (pc *ParseContext) getPackagePath(object *ast.Object) (string, bool) {
 
 func (pc *ParseContext) getPackageBasicInfo(object *ast.Object) (PackageBasicInfo, bool) {
 	if package1, ok := pc.object2Package[object]; ok {
-		return PackageBasicInfo{package1.ID, package1.Name, package1.Path}, true
+		return PackageBasicInfo{package1.Name, package1.PkgPath, package1.ImportPath}, true
 	}
 
 	return PackageBasicInfo{}, false
 }
 
-func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, packagePath string) (*package1, error) {
+func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, importPath string) (*package1, error) {
 	if len(rawPackage.Errors) != 0 {
-		buffer := bytes.NewBufferString("methodset: package errors encountered")
+		buffer := bytes.NewBufferString(fmt.Sprintf("methodset: package errors encountered; packagePath=%q", rawPackage.PkgPath))
 
 		for _, packageError := range rawPackage.Errors {
 			buffer.WriteByte('\n')
@@ -116,7 +130,7 @@ func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, packagePa
 		return nil, errors.New(buffer.String())
 	}
 
-	if package1, ok := pc.packageID2Package[rawPackage.ID]; ok {
+	if package1, ok := pc.packagePath2Package[rawPackage.PkgPath]; ok {
 		return package1, nil
 	}
 
@@ -129,12 +143,12 @@ func (pc *ParseContext) doImportPackage1(rawPackage *packages.Package, packagePa
 	}
 
 	package1 := package1{
-		Package: rawPackage,
-		Path:    packagePath,
-		Scope:   packageScope,
+		Package:    rawPackage,
+		ImportPath: importPath,
+		Scope:      packageScope,
 	}
 
-	pc.packageID2Package[package1.ID] = &package1
+	pc.packagePath2Package[package1.PkgPath] = &package1
 
 	for _, file := range package1.Syntax {
 		for _, object := range file.Scope.Objects {
@@ -154,9 +168,9 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 		fileScope := ast.NewScope(package1.Scope)
 
 		for _, importSpec := range file.Imports {
-			dependedPackagePath, _ := strconv.Unquote(importSpec.Path.Value)
-			rawDependedPackage := package1.Imports[dependedPackagePath]
-			dependedPackage, err := pc.doImportPackage1(rawDependedPackage, dependedPackagePath)
+			importPath, _ := strconv.Unquote(importSpec.Path.Value)
+			rawNextPackage := package1.Imports[importPath]
+			nextPackage, err := pc.doImportPackage1(rawNextPackage, importPath)
 
 			if err != nil {
 				return err
@@ -165,7 +179,7 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 			var importName string
 
 			if importSpec.Name == nil {
-				importName = dependedPackage.Name
+				importName = nextPackage.Name
 			} else {
 				importName = importSpec.Name.Name
 			}
@@ -173,13 +187,13 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 			switch importName {
 			case "_":
 			case ".":
-				for _, object := range dependedPackage.Scope.Objects {
+				for _, object := range nextPackage.Scope.Objects {
 					fileScope.Insert(object)
 				}
 			default:
 				object := ast.NewObj(ast.Pkg, importName)
 				object.Decl = importSpec
-				object.Data = dependedPackage.Scope
+				object.Data = nextPackage.Scope
 				fileScope.Insert(object)
 			}
 		}
@@ -219,9 +233,32 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 type package1 struct {
 	*packages.Package
 
-	Path       string
+	ImportPath string
 	Scope      *ast.Scope
 	IsImported bool
+}
+
+func packagePathToImportPath(packagePath string) string {
+	if strings.HasPrefix(packagePath, "_/") {
+		return packagePath
+	}
+
+	s := packagePath
+
+	for {
+		i := strings.Index(s, "vendor/")
+
+		if i < 0 {
+			return packagePath
+		}
+
+		if i >= 1 && s[i-1] != '/' {
+			s = s[:i]
+			continue
+		}
+
+		return packagePath[i+len("vendor/"):]
+	}
 }
 
 func resolveIdent(ident *ast.Ident, scope *ast.Scope) bool {
