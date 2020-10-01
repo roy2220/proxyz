@@ -9,8 +9,8 @@ import (
 )
 
 func TestProxyBase(t *testing.T) {
-	pb := proxyz.XxxProxyBase{}
-	s := ""
+	var pb proxyz.XxxProxyBase
+	var s string
 	pb.XxxInterceptMethodCall(101, func(_ proxyz.MethodCall) {
 		s += "a"
 	})

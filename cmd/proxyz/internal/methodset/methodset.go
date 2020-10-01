@@ -433,7 +433,7 @@ type Type struct {
 
 func (t *Type) parseExpr(context *ParseContext, expr ast.Expr) error {
 	var visitor ast.Visitor
-	restorers := [](func())(nil)
+	var restorers []func()
 
 	visitor = visitorFunc(func(node ast.Node) ast.Visitor {
 		switch node := node.(type) {
@@ -465,8 +465,8 @@ func (t *Type) parseExpr(context *ParseContext, expr ast.Expr) error {
 	})
 
 	ast.Walk(visitor, expr)
-	buffer := bytes.NewBufferString("")
-	printer.Fprint(buffer, context.FileSet(), expr)
+	var buffer bytes.Buffer
+	printer.Fprint(&buffer, context.FileSet(), expr)
 
 	for _, restorer := range restorers {
 		restorer()

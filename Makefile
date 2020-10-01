@@ -1,7 +1,7 @@
 override SHELL := /usr/bin/env bash -euxo pipefail
 override .DEFAULT_GOAL := all
 
-all: force vet lint test
+all: vet lint test
 
 vet: force
 	@go vet $(VETFLAGS) ./...

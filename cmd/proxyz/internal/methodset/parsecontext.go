@@ -24,8 +24,8 @@ type ParseContext struct {
 // Init ...
 func (pc *ParseContext) Init() *ParseContext {
 	pc.fileSet = token.NewFileSet()
-	pc.packagePath2Package = map[string]*package1{}
-	pc.object2Package = map[*ast.Object]*package1{}
+	pc.packagePath2Package = make(map[string]*package1)
+	pc.object2Package = make(map[*ast.Object]*package1)
 	return pc
 }
 
@@ -198,7 +198,7 @@ func (pc *ParseContext) doImportPackage2(package1 *package1) error {
 			}
 		}
 
-		i := 0
+		var i int
 
 		for _, ident := range file.Unresolved {
 			if !resolveIdent(ident, fileScope) {
